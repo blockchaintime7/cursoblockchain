@@ -8,19 +8,19 @@ pragma solidity ^0.8.0;
  * @notice Requisitos: contrato de aluguel permitirá o pagamento do aluguel em ether
  */
 contract Aluguel {
-    address payable public locatario;
+    address payable public locador;
 
     constructor() payable {
-        locatario = payable(msg.sender);
+        locador = payable(msg.sender);
     }
 
     event Transacao(string _function, address _de, uint _valor, bytes _data);
 
     /*
-     * @dev Valida se e o locatario
+     * @dev Valida se e o locador
      */
-    modifier somenteLocatario() {
-        require(msg.sender == locatario, "Somente locatario tem permissao");
+    modifier somentelocador() {
+        require(msg.sender == locador, "Somente locador tem permissao");
         _;
     }
 
@@ -41,10 +41,10 @@ contract Aluguel {
     /*
      * @dev Saca o valor desejado
      */
-    function saque() public somenteLocatario returns (bool) {
+    function saque() public somentelocador returns (bool) {
         uint saldoTotal = address(this).balance;
 
-        (bool sucesso, ) = locatario.call{value: saldoTotal}("");
+        (bool sucesso, ) = locador.call{value: saldoTotal}("");
         require(sucesso, "Ocorreu um erro ao sacar");
 
         emit Transacao("saque", msg.sender, saldoTotal, "");
@@ -57,8 +57,8 @@ contract Aluguel {
      * @param para o endereco favorecido
      * @param valor em ETH
      */
-    function transferir(address _para, uint _valor) public somenteLocatario returns (bool) {
-        require(_valor > 0, "Somente locatario tem permissao");
+    function transferir(address _para, uint _valor) public somentelocador returns (bool) {
+        require(_valor > 0, "Somente locador tem permissao");
 
         (bool sucesso, ) = _para.call{value: _valor}("");
         require(sucesso, "Ocorreu um erro ao transferir");
