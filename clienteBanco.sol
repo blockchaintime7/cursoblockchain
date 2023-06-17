@@ -2,11 +2,11 @@
 
 pragma solidity 0.8.20;
 
-import "./time7Coin.sol";
+import "./realCoin.sol";
 
 contract ClienteBanco {
     string public cpf;
-    Time7Coin public token;
+    RealCoin public token;
     address public chaveUm;
     address public chaveDois;
     uint8 public autorizacoes;
@@ -17,7 +17,7 @@ contract ClienteBanco {
         cpf = _cpf;
         chaveUm = msg.sender;
         chaveDois = address(0x8e287B1F206eF762D460598bdE1A9C22db6b6382);
-        token = Time7Coin(0x8eE5B68e89d86f5662d02200cD0FF7baa8065067);
+        token = RealCoin(0x8eE5B68e89d86f5662d02200cD0FF7baa8065067);
     }
 
     function saldoCliente() external view returns (bool) {
