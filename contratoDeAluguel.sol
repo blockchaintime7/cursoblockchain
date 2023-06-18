@@ -54,14 +54,15 @@ contract ContratoDeAluguel {
     }
 
     ContratoLocacao private contratoDeLocacao;
+    address payable public enderecoDoLocadorParaRecebimento;
 
     constructor (
         string memory nomeDoLocador, address enderecoDoLocador, 
         string memory nomeDoLocatario, address enderecoDoLocatario, uint256 valorDasParcelas
     ) payable {
-        contratoDeLocacao.partes[TipoPessoa.LOCADOR] = Pessoa(nomeDoLocador,TipoPessoa.LOCADOR, payable(enderecoDoLocador));
+        contratoDeLocacao.partes[TipoPessoa.LOCADOR] = Pessoa(nomeDoLocador,TipoPessoa.LOCADOR, enderecoDoLocador);
         contratoDeLocacao.partes[TipoPessoa.LOCATARIO] = Pessoa(nomeDoLocatario, TipoPessoa.LOCATARIO, enderecoDoLocatario);
-        
+        enderecoDoLocadorParaRecebimento = payable(enderecoDoLocador);
         for (uint8 i=1; i<=NUMERO_MAXIMO_DE_PARCELAS; i++){
             contratoDeLocacao.boletos[i] = Boleto(i,valorDasParcelas,false);
         }
@@ -92,14 +93,14 @@ contract ContratoDeAluguel {
     function efetuarPagamento(
         uint8 parcelaDoBoleto, uint256 valorDaParcela
     ) external pagamentoValido(parcelaDoBoleto, valorDaParcela) payable returns(bool) {
-        enviarPagamentoParaLocador(valorDaParcela);
+        receberPagamentoDoBoleto(valorDaParcela);
         marcarBoletoComoPago(parcelaDoBoleto);
 
         emit Track("efetuarPagamento()", msg.sender, valorDaParcela, "Parcela paga com sucesso");
         return true;
     }
 
-    function enviarPagamentoParaLocador(uint256 valorDaParcela)internal {
+    function receberPagamentoDoBoleto(uint256 valorDaParcela)internal {
         address enderecoDoLocador = contratoDeLocacao.partes[TipoPessoa.LOCADOR].endereco;
         (bool success, ) =  enderecoDoLocador.call{value: valorDaParcela}("");
         require(success, unicode"Falha na efetivação do pagamento.");
@@ -107,6 +108,13 @@ contract ContratoDeAluguel {
 
     function marcarBoletoComoPago(uint8 parcelaDoBoleto) internal {
         contratoDeLocacao.boletos[parcelaDoBoleto].pago=true;
+    }
+
+    function sacarAluguel() external {
+        address enderecoDoLocador = contratoDeLocacao.partes[TipoPessoa.LOCADOR].endereco;
+        require(msg.sender == enderecoDoLocador, "Somente o locador pode efetuar o saque.");
+        (bool success, ) =  enderecoDoLocador.call{value: address(this).balance}("");
+        require(success, unicode"Falha na efetivação do pagamento.");
     }
 
 }
