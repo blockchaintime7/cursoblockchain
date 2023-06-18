@@ -5,8 +5,9 @@ pragma solidity 0.8.20;
 contract ContratoDeAluguel {
     uint8 constant NUMERO_MAXIMO_DE_PARCELAS = 36; 
     uint8 constant TAMANHO_MINIMO_DO_NOME = 3;
-
     enum TipoPessoa{ INVALIDO, LOCADOR, LOCATARIO }
+
+    event Track(string indexed _function, address sender, uint value, bytes data); 
 
     struct Pessoa{
         string nome;
@@ -42,18 +43,20 @@ contract ContratoDeAluguel {
         _;
     }
 
-    modifier pagamentoValido(uint8 parcelaDoBoleto, uint256 valor) {
+    modifier pagamentoValido(uint8 parcelaDoBoleto, uint256 valorDaParcela) {
         require(verificarValidadeDaParcela(parcelaDoBoleto), unicode"A parcela escolhida para o reajuste é inválida.");
         require(!contratoDeLocacao.boletos[parcelaDoBoleto].pago, unicode"Esta parcela do boleto já foi paga.");
         require(msg.sender == contratoDeLocacao.partes[TipoPessoa.LOCATARIO].endereco, unicode"Endereço não permitido para efetuar este pagamento.");
-        require(msg.value >= valor, "Saldo insuficiente para o pagametno do boleto.");
+        
+        require(valorDaParcela == contratoDeLocacao.boletos[parcelaDoBoleto].valor, unicode"Valor informado é diferente do valor do boleto");
+        require(msg.value >= valorDaParcela, "Saldo insuficiente para o pagametno do boleto.");
         _;
     }
 
     ContratoLocacao private contratoDeLocacao;
     
 
-    constructor(
+    constructor (
         string memory nomeDoLocador, address enderecoDoLocador, 
         string memory nomeDoLocatario, address enderecoDoLocatario, uint256 valorDasParcelas
     ) payable {
@@ -87,16 +90,19 @@ contract ContratoDeAluguel {
     } 
 
     function efetuarPagamento(
-        uint8 parcelaDoBoleto, uint256 valor
-    ) external pagamentoValido(parcelaDoBoleto, valor) payable returns(bool) {
-        enviarPagamentoParaLocador(valor);
+        uint8 parcelaDoBoleto, uint256 valorDaParcela
+    ) external pagamentoValido(parcelaDoBoleto, valorDaParcela) payable returns(bool) {
+        emit Track("efetuarPagamento()", msg.sender, msg.value, "Iniciando o pagamento do Boleto.");
+        enviarPagamentoParaLocador(valorDaParcela);
         marcarBoletoComoPago(parcelaDoBoleto);
+
+        emit Track("efetuarPagamento()", msg.sender, msg.value, "Parcela paga com sucesso");
         return true;
     }
 
-    function enviarPagamentoParaLocador(uint256 valor)internal {
+    function enviarPagamentoParaLocador(uint256 valorDaParcela)internal {
         address enderecoDoLocador = contratoDeLocacao.partes[TipoPessoa.LOCADOR].endereco;
-        (bool success, ) =  enderecoDoLocador.call{value: valor}("");
+        (bool success, ) =  enderecoDoLocador.call{value: valorDaParcela}("");
         require(success, unicode"Falha na efetivação do pagamento.");
     }
 
