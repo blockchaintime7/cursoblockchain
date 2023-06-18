@@ -49,12 +49,11 @@ contract ContratoDeAluguel {
         require(msg.sender == contratoDeLocacao.partes[TipoPessoa.LOCATARIO].endereco, unicode"Endereço não permitido para efetuar este pagamento.");
         
         require(valorDaParcela == contratoDeLocacao.boletos[parcelaDoBoleto].valor, unicode"Valor informado é diferente do valor do boleto");
-        require(msg.value >= valorDaParcela, "Saldo insuficiente para o pagametno do boleto.");
+        require(msg.sender.balance >= valorDaParcela, "Saldo insuficiente para o pagametno do boleto.");
         _;
     }
 
     ContratoLocacao private contratoDeLocacao;
-    
 
     constructor (
         string memory nomeDoLocador, address enderecoDoLocador, 
@@ -62,6 +61,7 @@ contract ContratoDeAluguel {
     ) payable {
         contratoDeLocacao.partes[TipoPessoa.LOCADOR] = Pessoa(nomeDoLocador,TipoPessoa.LOCADOR, payable(enderecoDoLocador));
         contratoDeLocacao.partes[TipoPessoa.LOCATARIO] = Pessoa(nomeDoLocatario, TipoPessoa.LOCATARIO, enderecoDoLocatario);
+        
         for (uint8 i=1; i<=NUMERO_MAXIMO_DE_PARCELAS; i++){
             contratoDeLocacao.boletos[i] = Boleto(i,valorDasParcelas,false);
         }
@@ -92,11 +92,10 @@ contract ContratoDeAluguel {
     function efetuarPagamento(
         uint8 parcelaDoBoleto, uint256 valorDaParcela
     ) external pagamentoValido(parcelaDoBoleto, valorDaParcela) payable returns(bool) {
-        emit Track("efetuarPagamento()", msg.sender, msg.value, "Iniciando o pagamento do Boleto.");
         enviarPagamentoParaLocador(valorDaParcela);
         marcarBoletoComoPago(parcelaDoBoleto);
 
-        emit Track("efetuarPagamento()", msg.sender, msg.value, "Parcela paga com sucesso");
+        emit Track("efetuarPagamento()", msg.sender, valorDaParcela, "Parcela paga com sucesso");
         return true;
     }
 
