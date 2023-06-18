@@ -53,16 +53,24 @@ contract ContratoDeAluguel {
         _;
     }
 
+    modifier saqueLiberado(){
+        require(
+            msg.sender == contratoDeLocacao.partes[TipoPessoa.LOCADOR].endereco, 
+            "Somente o locador pode efetuar o saque.");
+        require(saldoDoContrato > 0, unicode"Não existe saldo para saque.");
+        _;
+
+    }
+
     ContratoLocacao private contratoDeLocacao;
-    address payable public enderecoDoLocadorParaRecebimento;
+    uint256 private saldoDoContrato;
 
     constructor (
         string memory nomeDoLocador, address enderecoDoLocador, 
         string memory nomeDoLocatario, address enderecoDoLocatario, uint256 valorDasParcelas
     ) payable {
-        contratoDeLocacao.partes[TipoPessoa.LOCADOR] = Pessoa(nomeDoLocador,TipoPessoa.LOCADOR, enderecoDoLocador);
+        contratoDeLocacao.partes[TipoPessoa.LOCADOR] = Pessoa(nomeDoLocador,TipoPessoa.LOCADOR, payable(enderecoDoLocador));
         contratoDeLocacao.partes[TipoPessoa.LOCATARIO] = Pessoa(nomeDoLocatario, TipoPessoa.LOCATARIO, enderecoDoLocatario);
-        enderecoDoLocadorParaRecebimento = payable(enderecoDoLocador);
         for (uint8 i=1; i<=NUMERO_MAXIMO_DE_PARCELAS; i++){
             contratoDeLocacao.boletos[i] = Boleto(i,valorDasParcelas,false);
         }
@@ -78,11 +86,18 @@ contract ContratoDeAluguel {
         return (contratoDeLocacao.partes[TipoPessoa.LOCADOR], contratoDeLocacao.partes[TipoPessoa.LOCATARIO]);
     }
 
-
-    function reajustarParcelas(uint8 parcelaInicialParaReajuste, uint256 valorDoReajuste) external{
+    function reajustarParcelas(uint8 parcelaInicialParaReajuste, uint256 valorDoReajuste) external returns(bool){
         require(verificarValidadeDaParcela(parcelaInicialParaReajuste), unicode"A parcela escolhida para o reajuste é inválida.");
         for (uint8 i = parcelaInicialParaReajuste; i <= NUMERO_MAXIMO_DE_PARCELAS; i++){
-            contratoDeLocacao.boletos[i].valor = contratoDeLocacao.boletos[i].valor + valorDoReajuste;
+            reajustarBoletosNaoPagos(parcelaInicialParaReajuste, valorDoReajuste);
+        }
+
+        return true;
+    }
+
+    function reajustarBoletosNaoPagos(uint8 parcela, uint256 valorDoReajuste) internal {
+        if( !contratoDeLocacao.boletos[parcela].pago ){
+            contratoDeLocacao.boletos[parcela].valor = contratoDeLocacao.boletos[parcela].valor + valorDoReajuste;
         }
     }
 
@@ -92,7 +107,7 @@ contract ContratoDeAluguel {
 
     function efetuarPagamento(
         uint8 parcelaDoBoleto, uint256 valorDaParcela
-    ) external pagamentoValido(parcelaDoBoleto, valorDaParcela) payable returns(bool) {
+    ) external pagamentoValido(parcelaDoBoleto, valorDaParcela) returns(bool) {
         receberPagamentoDoBoleto(valorDaParcela);
         marcarBoletoComoPago(parcelaDoBoleto);
 
@@ -100,21 +115,26 @@ contract ContratoDeAluguel {
         return true;
     }
 
-    function receberPagamentoDoBoleto(uint256 valorDaParcela)internal {
-        address enderecoDoLocador = contratoDeLocacao.partes[TipoPessoa.LOCADOR].endereco;
-        (bool success, ) =  enderecoDoLocador.call{value: valorDaParcela}("");
-        require(success, unicode"Falha na efetivação do pagamento.");
+    function receberPagamentoDoBoleto(uint256 valorDaParcela) internal {
+        saldoDoContrato+=valorDaParcela;
     }
 
     function marcarBoletoComoPago(uint8 parcelaDoBoleto) internal {
         contratoDeLocacao.boletos[parcelaDoBoleto].pago=true;
     }
 
-    function sacarAluguel() external {
+
+    function sacarAluguel() external saqueLiberado returns(bool){
         address enderecoDoLocador = contratoDeLocacao.partes[TipoPessoa.LOCADOR].endereco;
-        require(msg.sender == enderecoDoLocador, "Somente o locador pode efetuar o saque.");
-        (bool success, ) =  enderecoDoLocador.call{value: address(this).balance}("");
+        (bool success, ) =  enderecoDoLocador.call{value: saldoDoContrato}("");
         require(success, unicode"Falha na efetivação do pagamento.");
+        saldoDoContrato=0;
+        return true;
+    }
+
+    function valorDisponivelParaSaque() external view returns(uint256){
+        //return address(this).balance;
+        return saldoDoContrato;
     }
 
 }
