@@ -5,8 +5,8 @@ pragma solidity 0.8.20;
 import "./realDigital.sol";
 
 contract ClienteBanco {
-    //Como guardaria esta chave em outro local?
-    address constant ENDERECO_REAL_COIN = 0x8eE5B68e89d86f5662d02200cD0FF7baa8065067;
+    
+    address enderecoRealDigital;
     //O endereço do banco é a conta do Toledo
     address constant ENDERECO_DO_BANCO = 0x47bddffaB5057c2725dde8E22aBe63A9E4091E25;
 
@@ -17,19 +17,32 @@ contract ClienteBanco {
     RealDigital public realDigital;
     address public chaveDoBanco;
     bool public autorizacaoBanco;
+
+    modifier validarBanco(){
+        require(
+            msg.sender == ENDERECO_DO_BANCO, 
+            "Somente o locador pode efetuar o saque.");
+        _;
+
+    }
     
     event AutorizacaoDada(address chave, uint data);
 
-    constructor(string memory cpfNovoCliente, address enderecoDoCliente) {
+    constructor(string memory cpfNovoCliente, address enderecoDoCliente, address _enderecoRealDigital) {
         require(msg.sender == ENDERECO_DO_BANCO, "Somente o banco pode criar a conta para o cliente.");
         chaveDoBanco = msg.sender;
         cpfCliente = cpfNovoCliente;
         chaveDoCliente = address(enderecoDoCliente);
-        realDigital = RealDigital(ENDERECO_REAL_COIN);
+        realDigital = RealDigital(_enderecoRealDigital);
     }
 
     function saldoCliente() external view returns (uint256) {
         return realDigital.balanceOf(address(this));
+    }
+
+    function trocaEnderecoDoReal(address _enderecoRealDigital) external validarBanco returns (bool) {
+        realDigital = RealDigital(_enderecoRealDigital);
+        return true;
     }
 
     function autorizo() external returns (bool) {
@@ -43,15 +56,15 @@ contract ClienteBanco {
         return true;
     }
 
-    function saqueTotal(address _to) external returns (bool) {
+    function saque(address _to, uint256 valor) external returns (bool) {
         require(msg.sender == chaveDoBanco || msg.sender == chaveDoCliente, unicode"Somente o banco e o cliente podem fazer essa operação.");
-        if (realDigital.balanceOf(address(this)) > 1000) {
+        if (valor <= realDigital.balanceOf(address(this)) && valor > 100000) {
             require(autorizacaoCliente && autorizacaoBanco, unicode"não possue as autorizações necessárias");
         }
-        bool success = realDigital.transfer(_to, realDigital.balanceOf(address(this)));
+        bool success = realDigital.transfer(_to, valor);
         require(success, "houve falha no saque");
-        autorizacaoCliente=true; 
-        autorizacaoBanco=true;
+        autorizacaoCliente=false; 
+        autorizacaoBanco=false;
         return success;
     }
 }
