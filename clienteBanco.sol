@@ -2,43 +2,56 @@
 
 pragma solidity 0.8.20;
 
-import "./realCoin.sol";
+import "./realDigital.sol";
 
 contract ClienteBanco {
-    string public cpf;
-    RealCoin public token;
-    address public chaveUm;
-    address public chaveDois;
-    uint8 public autorizacoes;
+    //Como guardaria esta chave em outro local?
+    address constant ENDERECO_REAL_COIN = 0x8eE5B68e89d86f5662d02200cD0FF7baa8065067;
+    //O endereço do banco é a conta do Toledo
+    address constant ENDERECO_DO_BANCO = 0x47bddffaB5057c2725dde8E22aBe63A9E4091E25;
 
+    string public cpfCliente;
+    address public chaveDoCliente;
+    bool public autorizacaoCliente;
+
+    RealDigital public realDigital;
+    address public chaveDoBanco;
+    bool public autorizacaoBanco;
+    
     event AutorizacaoDada(address chave, uint data);
 
-    constructor(string memory _cpf) {
-        cpf = _cpf;
-        chaveUm = msg.sender;
-        chaveDois = address(0x8e287B1F206eF762D460598bdE1A9C22db6b6382);
-        token = RealCoin(0x8eE5B68e89d86f5662d02200cD0FF7baa8065067);
+    constructor(string memory cpfNovoCliente, address enderecoDoCliente) {
+        require(msg.sender == ENDERECO_DO_BANCO, "Somente o banco pode criar a conta para o cliente.");
+        chaveDoBanco = msg.sender;
+        cpfCliente = cpfNovoCliente;
+        chaveDoCliente = address(enderecoDoCliente);
+        realDigital = RealDigital(ENDERECO_REAL_COIN);
     }
 
-    function saldoCliente() external view returns (bool) {
-        return token.balanceOf(address(this))>0;
+    function saldoCliente() external view returns (uint256) {
+        return realDigital.balanceOf(address(this));
     }
 
     function autorizo() external returns (bool) {
-        require(msg.sender == chaveUm || msg.sender == chaveDois, "somente o banco pode fazer essa operacao");
-        autorizacoes++;
+        require(msg.sender == chaveDoBanco || msg.sender == chaveDoCliente, unicode"Somente o banco e o cliente podem fazer essa operação.");
+        if(msg.sender == chaveDoBanco){
+            autorizacaoBanco = true;
+        } else {
+            autorizacaoCliente = true;
+        }
         emit AutorizacaoDada(msg.sender, block.timestamp);
         return true;
     }
 
     function saqueTotal(address _to) external returns (bool) {
-        require(msg.sender == chaveUm || msg.sender == chaveDois, "somente o banco pode fazer essa operacao");
-        if (token.balanceOf(address(this)) > 1000) {
-            require(autorizacoes == 2, "nao possue autorizacoes necessarias");
+        require(msg.sender == chaveDoBanco || msg.sender == chaveDoCliente, unicode"Somente o banco e o cliente podem fazer essa operação.");
+        if (realDigital.balanceOf(address(this)) > 1000) {
+            require(autorizacaoCliente && autorizacaoBanco, unicode"não possue as autorizações necessárias");
         }
-        bool success = token.transfer(_to, token.balanceOf(address(this)));
+        bool success = realDigital.transfer(_to, realDigital.balanceOf(address(this)));
         require(success, "houve falha no saque");
-        autorizacoes = 0;
+        autorizacaoCliente=true; 
+        autorizacaoBanco=true;
         return success;
     }
 }

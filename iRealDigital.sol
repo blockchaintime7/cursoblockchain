@@ -5,7 +5,7 @@ pragma solidity 0.8.20;
 /**
  * @dev Interface of the RealCoin standard as defined in the EIP.
  */
-interface IRealCoin {
+interface IRealDigital {
     /**
      * @dev Emitted when `value` tokens are moved from one account (`from`) to
      * another (`to`).

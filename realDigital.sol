@@ -1,7 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.20;
 
-contract RealCoin {
+contract RealDigital {
+    //O endereço do banco central (Está sendo utilizada a do Toledo)
+    address constant ENDERECO_DO_BANCO_CENTRAL = 0x47bddffaB5057c2725dde8E22aBe63A9E4091E25;
+    uint256 constant UM_TRILHAO_DE_REAIS = 100000000000000;
+    uint8 constant CASAS_DECIMAIS_DO_REAL = 2;
+    string constant NOME_DA_MOEDA = "Real Digital"; 
+    string constant SIMBOLO_DA_MOEDA = "REAL";
+
+    modifier validaBancoCentral(){
+        require(msg.sender == ENDERECO_DO_BANCO_CENTRAL, unicode"Ação permitida somente para o Banco Central.");
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -44,12 +56,14 @@ contract RealCoin {
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor() {
-        name = "Time7Coin";
-        symbol = "T7CN";
-        decimals = 2;
-        mint(msg.sender, 100000000);
-
+    constructor() validaBancoCentral {
+        name = NOME_DA_MOEDA;
+        symbol = SIMBOLO_DA_MOEDA;
+        decimals = CASAS_DECIMAIS_DO_REAL;
+        
+        //Criando o Real com 1 trilhão de Reais
+        mint(msg.sender, UM_TRILHAO_DE_REAIS);
+        
         INITIAL_CHAIN_ID = block.chainid;
         INITIAL_DOMAIN_SEPARATOR = computeDomainSeparator();
     }
@@ -172,7 +186,7 @@ contract RealCoin {
                         INTERNAL MINT/BURN LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function mint(address to, uint256 amount) public  {
+    function mint(address to, uint256 amount) public validaBancoCentral {
         totalSupply += amount;
 
         // Cannot overflow because the sum of all user
@@ -184,7 +198,7 @@ contract RealCoin {
         emit Transfer(address(0), to, amount);
     }
 
-    function burn(address from, uint256 amount) public  {
+    function burn(address from, uint256 amount) public validaBancoCentral {
         balanceOf[from] -= amount;
 
         // Cannot underflow because a user's balance
