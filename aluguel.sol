@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 /*
  * @title Aluguel
- * @author blockchaintime7
+ * @author blockchaintime7.0
  * @notice Requisitos: contrato de aluguel permitirá o pagamento do aluguel em ether
  */
 contract Aluguel {
