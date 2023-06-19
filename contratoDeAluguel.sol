@@ -43,13 +43,13 @@ contract ContratoDeAluguel {
         _;
     }
 
-    modifier pagamentoValido(uint8 parcelaDoBoleto, uint256 valorDaParcela) {
+    modifier pagamentoValido(uint8 parcelaDoBoleto) {
         require(verificarValidadeDaParcela(parcelaDoBoleto), unicode"A parcela escolhida para o reajuste é inválida.");
         require(!contratoDeLocacao.boletos[parcelaDoBoleto].pago, unicode"Esta parcela do boleto já foi paga.");
         require(msg.sender == contratoDeLocacao.partes[TipoPessoa.LOCATARIO].endereco, unicode"Endereço não permitido para efetuar este pagamento.");
         
-        require(valorDaParcela == contratoDeLocacao.boletos[parcelaDoBoleto].valor, unicode"Valor informado é diferente do valor do boleto");
-        require(msg.sender.balance >= valorDaParcela, "Saldo insuficiente para o pagametno do boleto.");
+        require(msg.value == contratoDeLocacao.boletos[parcelaDoBoleto].valor, unicode"Valor informado é diferente do valor do boleto");
+        require(msg.sender.balance >= msg.value, "Saldo insuficiente para o pagametno do boleto.");
         _;
     }
 
@@ -57,13 +57,12 @@ contract ContratoDeAluguel {
         require(
             msg.sender == contratoDeLocacao.partes[TipoPessoa.LOCADOR].endereco, 
             "Somente o locador pode efetuar o saque.");
-        require(saldoDoContrato > 0, unicode"Não existe saldo para saque.");
+        require(address(this).balance > 0, unicode"Não existe saldo para saque.");
         _;
 
     }
 
     ContratoLocacao private contratoDeLocacao;
-    uint256 private saldoDoContrato;
 
     constructor (
         string memory nomeDoLocador, address enderecoDoLocador, 
@@ -106,17 +105,12 @@ contract ContratoDeAluguel {
     } 
 
     function efetuarPagamento(
-        uint8 parcelaDoBoleto, uint256 valorDaParcela
-    ) external pagamentoValido(parcelaDoBoleto, valorDaParcela) returns(bool) {
-        receberPagamentoDoBoleto(valorDaParcela);
+        uint8 parcelaDoBoleto
+    ) external payable  pagamentoValido(parcelaDoBoleto) returns(bool) {
         marcarBoletoComoPago(parcelaDoBoleto);
 
-        emit Track("efetuarPagamento()", msg.sender, valorDaParcela, "Parcela paga com sucesso");
+        emit Track("efetuarPagamento()", msg.sender, msg.value, "Parcela paga com sucesso");
         return true;
-    }
-
-    function receberPagamentoDoBoleto(uint256 valorDaParcela) internal {
-        saldoDoContrato+=valorDaParcela;
     }
 
     function marcarBoletoComoPago(uint8 parcelaDoBoleto) internal {
@@ -126,15 +120,13 @@ contract ContratoDeAluguel {
 
     function sacarAluguel() external saqueLiberado returns(bool){
         address enderecoDoLocador = contratoDeLocacao.partes[TipoPessoa.LOCADOR].endereco;
-        (bool success, ) =  enderecoDoLocador.call{value: saldoDoContrato}("");
+        (bool success, ) =  enderecoDoLocador.call{value: address(this).balance}("");
         require(success, unicode"Falha na efetivação do pagamento.");
-        saldoDoContrato=0;
         return true;
     }
 
     function valorDisponivelParaSaque() external view returns(uint256){
-        //return address(this).balance;
-        return saldoDoContrato;
+        return address(this).balance;
     }
 
 }
